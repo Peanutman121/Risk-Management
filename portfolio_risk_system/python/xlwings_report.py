@@ -689,6 +689,173 @@ def generate_full_report(
 
 
 # =============================================================================
+# EXCEL BUTTON INTEGRATION (xlwings)
+# =============================================================================
+
+def generate_report_from_excel():
+    """
+    Generate report from Excel button click (xlwings integration).
+
+    This function is called when the trader clicks the "Generate Report"
+    button in Excel. It detects the current workbook and generates the report.
+
+    Usage from VBA:
+        RunPython "from xlwings_report import generate_report_from_excel; generate_report_from_excel()"
+    """
+    if not XLWINGS_AVAILABLE:
+        raise ImportError("xlwings is required for Excel button integration")
+
+    try:
+        # Get the active workbook (the one the button was clicked in)
+        wb = xw.Book.caller()
+
+        logger.info(f"Generating report for: {wb.name}")
+
+        # Read positions and settings
+        positions = read_positions_xlwings(wb)
+        settings = read_settings_xlwings(wb)
+
+        # Filter by status
+        open_pos = get_open_positions(positions)
+        closed_pos = get_closed_positions(positions)
+        potential_pos = get_potential_positions(positions)
+
+        # Get data provider (if available)
+        try:
+            data_provider = get_data_provider()
+        except Exception as e:
+            logger.warning(f"Data provider not available: {e}")
+            data_provider = None
+
+        # Enrich with market data (if available)
+        if data_provider:
+            try:
+                from xlwings_report import enrich_positions_with_market_data
+                open_pos = enrich_positions_with_market_data(open_pos, data_provider)
+                potential_pos = enrich_positions_with_market_data(potential_pos, data_provider)
+            except Exception as e:
+                logger.warning(f"Could not enrich with market data: {e}")
+
+        # Calculate portfolio vol
+        if not open_pos.empty and 'position_vol' in open_pos.columns:
+            vols = open_pos['position_vol'].dropna()
+            if len(vols) > 0:
+                portfolio_vol = calculate_portfolio_vol_uniform(vols.values, settings['default_correlation'])
+            else:
+                portfolio_vol = 0
+        else:
+            portfolio_vol = 0
+
+        # Write report to Report sheet
+        ws = wb.sheets[SHEET_REPORT]
+        ws.clear()
+
+        # Header
+        ws.range('A1').value = f"TRADER RISK REPORT - {settings['trader_name']}"
+        ws.range('A1').font.bold = True
+        ws.range('A1').font.size = 16
+
+        ws.range('A2').value = f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+
+        # Section 1: Portfolio Summary
+        row = 4
+        ws.range(f'A{row}').value = "PORTFOLIO SUMMARY"
+        ws.range(f'A{row}').font.bold = True
+        row += 1
+
+        ws.range(f'A{row}').value = "Portfolio Vol:"
+        ws.range(f'B{row}').value = portfolio_vol
+        ws.range(f'B{row}').number_format = '$#,##0'
+        row += 1
+
+        risk_limit = settings.get('risk_limit', 10_000_000)
+        risk_util = (portfolio_vol / risk_limit * 100) if risk_limit > 0 else 0
+        ws.range(f'A{row}').value = "Risk Utilization:"
+        ws.range(f'B{row}').value = risk_util / 100
+        ws.range(f'B{row}').number_format = '0.0%'
+        row += 1
+
+        ws.range(f'A{row}').value = "Headroom:"
+        ws.range(f'B{row}').value = risk_limit - portfolio_vol
+        ws.range(f'B{row}').number_format = '$#,##0'
+        row += 2
+
+        # Section 2: 2-Sigma Drawdowns
+        ws.range(f'A{row}').value = "2-SIGMA DRAWDOWNS"
+        ws.range(f'A{row}').font.bold = True
+        row += 1
+
+        drawdowns = calculate_2sigma_drawdowns(portfolio_vol)
+        for horizon, label in [('1d', '1 Day'), ('1w', '1 Week'), ('2w', '2 Weeks'), ('1m', '1 Month')]:
+            ws.range(f'A{row}').value = label
+            ws.range(f'B{row}').value = drawdowns[horizon]
+            ws.range(f'B{row}').number_format = '$#,##0'
+            row += 1
+
+        row += 1
+
+        # Section 3: Open Positions
+        ws.range(f'A{row}').value = "OPEN POSITIONS"
+        ws.range(f'A{row}').font.bold = True
+        row += 1
+
+        if not open_pos.empty:
+            # Write headers
+            headers = ['Ticker', 'Headline', 'Direction', 'BPV', 'Entry', 'Current', 'P&L', 'Position Vol', 'Score']
+            for i, header in enumerate(headers):
+                ws.range(row, i+1).value = header
+                ws.range(row, i+1).font.bold = True
+            row += 1
+
+            # Write positions
+            for _, pos in open_pos.iterrows():
+                ws.range(row, 1).value = pos.get('ticker', '')
+                ws.range(row, 2).value = pos.get('headline', '')
+                ws.range(row, 3).value = pos.get('direction', '')
+                ws.range(row, 4).value = pos.get('bpv', 0)
+                ws.range(row, 5).value = pos.get('entry_level', 0)
+                ws.range(row, 6).value = pos.get('current_level', 0)
+                ws.range(row, 7).value = pos.get('pnl', 0)
+                ws.range(row, 7).number_format = '$#,##0'
+                ws.range(row, 8).value = pos.get('position_vol', 0)
+                ws.range(row, 8).number_format = '$#,##0'
+                ws.range(row, 9).value = pos.get('total_score', 0)
+                row += 1
+
+        row += 1
+
+        # Section 4: SVB Stress
+        ws.range(f'A{row}').value = "SVB STRESS SCENARIO"
+        ws.range(f'A{row}').font.bold = True
+        row += 1
+
+        if not open_pos.empty:
+            scenario = load_svb_scenario()
+            stress_summary = scenario.get_portfolio_stress_summary(open_pos)
+
+            ws.range(f'A{row}').value = "Total Stress P&L:"
+            ws.range(f'B{row}').value = stress_summary.get('total_stress_pnl', 0)
+            ws.range(f'B{row}').number_format = '$#,##0'
+            row += 1
+
+            ws.range(f'A{row}').value = "Worst Position:"
+            ws.range(f'B{row}').value = stress_summary.get('worst_position', 0)
+            ws.range(f'B{row}').number_format = '$#,##0'
+            ws.range(f'C{row}').value = stress_summary.get('worst_position_ticker', '')
+
+        # Auto-fit columns
+        ws.autofit()
+
+        logger.info("Report written to Excel successfully")
+
+    except Exception as e:
+        logger.error(f"Error generating report from Excel: {e}", exc_info=True)
+        if XLWINGS_AVAILABLE:
+            import xlwings as xw
+            xw.Book.caller().sheets[SHEET_REPORT].range('A1').value = f"ERROR: {str(e)}"
+
+
+# =============================================================================
 # MAIN ENTRY POINT
 # =============================================================================
 
