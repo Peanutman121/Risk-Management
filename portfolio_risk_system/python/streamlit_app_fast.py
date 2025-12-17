@@ -370,19 +370,19 @@ def render_all_positions(all_positions):
 
     with col1:
         traders = ['All'] + sorted(all_positions_enriched['trader_name'].unique().tolist())
-        selected_traders = st.multiselect("Trader", traders, default=['All'])
+        selected_traders = st.multiselect("Trader", traders, default=['All'], key="fast_positions_filter_traders")
 
     with col2:
         statuses = ['All'] + sorted(all_positions_enriched['status'].dropna().unique().tolist())
-        selected_status = st.selectbox("Status", statuses)
+        selected_status = st.selectbox("Status", statuses, key="fast_positions_filter_status")
 
     with col3:
         products = ['All'] + sorted(all_positions_enriched['product'].unique().tolist())
-        selected_product = st.selectbox("Product", products)
+        selected_product = st.selectbox("Product", products, key="fast_positions_filter_product")
 
     with col4:
         directions = ['All', 'Long', 'Short']
-        selected_direction = st.selectbox("Direction", directions)
+        selected_direction = st.selectbox("Direction", directions, key="fast_positions_filter_direction")
 
     # Apply filters
     filtered = all_positions_enriched.copy()

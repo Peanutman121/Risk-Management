@@ -350,19 +350,19 @@ def render_all_positions(all_positions: pd.DataFrame):
 
     with col1:
         traders = ['All'] + sorted(all_positions['trader_name'].unique().tolist())
-        selected_traders = st.multiselect("Trader", traders, default=['All'])
+        selected_traders = st.multiselect("Trader", traders, default=['All'], key="positions_filter_traders")
 
     with col2:
         statuses = ['All'] + sorted(all_positions['status'].dropna().unique().tolist())
-        selected_status = st.selectbox("Status", statuses)
+        selected_status = st.selectbox("Status", statuses, key="positions_filter_status")
 
     with col3:
         products = ['All'] + sorted(all_positions['product'].unique().tolist())
-        selected_product = st.selectbox("Product", products)
+        selected_product = st.selectbox("Product", products, key="positions_filter_product")
 
     with col4:
         directions = ['All', 'Long', 'Short']
-        selected_direction = st.selectbox("Direction", directions)
+        selected_direction = st.selectbox("Direction", directions, key="positions_filter_direction")
 
     # Apply filters
     filtered = all_positions.copy()
@@ -449,7 +449,7 @@ def render_trader_drilldown(all_positions: pd.DataFrame, settings_dict: dict):
 
     # Trader selector
     traders = sorted([f"Trader {i}" for i in range(1, 6)])
-    selected_trader = st.selectbox("Select Trader", traders)
+    selected_trader = st.selectbox("Select Trader", traders, key="drilldown_trader_select")
 
     # Extract trader number
     trader_num = int(selected_trader.split()[1])
@@ -656,18 +656,18 @@ def render_trade_history(all_positions: pd.DataFrame):
 
     with col1:
         traders = ['All'] + sorted(closed_pos['trader_name'].unique().tolist())
-        selected_traders = st.multiselect("Trader", traders, default=['All'])
+        selected_traders = st.multiselect("Trader", traders, default=['All'], key="history_filter_traders")
 
     with col2:
         if 'rationale_type' in closed_pos.columns:
             rationales = ['All'] + sorted(closed_pos['rationale_type'].dropna().unique().tolist())
-            selected_rationale = st.selectbox("Rationale", rationales)
+            selected_rationale = st.selectbox("Rationale", rationales, key="history_filter_rationale")
         else:
             selected_rationale = 'All'
 
     with col3:
         outcomes = ['All', 'Winners', 'Losers']
-        selected_outcome = st.selectbox("Outcome", outcomes)
+        selected_outcome = st.selectbox("Outcome", outcomes, key="history_filter_outcome")
 
     # Apply filters
     filtered = closed_pos.copy()
@@ -845,7 +845,8 @@ def main():
         "Navigate",
         ["📊 Book Summary", "📋 All Positions", "👤 Trader Drill-Down",
          "📈 Performance", "📜 Trade History", "🔮 Potential Trades"],
-        horizontal=True
+        horizontal=True,
+        key="page_navigation"
     )
 
     st.markdown("---")
