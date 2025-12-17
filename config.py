@@ -39,7 +39,8 @@ DATA_PROVIDER = "BBG"
 # Fetch live prices from Bloomberg API when Streamlit loads?
 # True = Fetch from BBG API on startup (fast bulk fetch, ~1-2s)
 # False = Read prices from Excel's current_level column only
-FETCH_LIVE_PRICES = True
+# PERFORMANCE: Set to False to prevent freezing on dropdown clicks
+FETCH_LIVE_PRICES = False
 
 # Bloomberg API settings (only used if DATA_PROVIDER = "BBG")
 BBG_HOST = "localhost"
@@ -61,10 +62,12 @@ DEFAULT_VOL_TARGET = 50.0
 DEFAULT_CORRELATION = 0.2
 
 # Use live correlation matrix from market data (True) or fixed DEFAULT_CORRELATION (False)
-USE_LIVE_CORRELATIONS = True
+# PERFORMANCE: Set to False to prevent freezing on dropdown clicks (Bloomberg API call is slow)
+USE_LIVE_CORRELATIONS = False
 
 # Require live correlations - fail report generation if correlation matrix unavailable (strict mode)
-REQUIRE_LIVE_CORRELATIONS = True
+# PERFORMANCE: Set to False when USE_LIVE_CORRELATIONS is False
+REQUIRE_LIVE_CORRELATIONS = False
 
 # Risk-free rate for Sharpe calculation (%)
 RISK_FREE_RATE = 0.05
