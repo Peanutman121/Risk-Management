@@ -1209,58 +1209,40 @@ def main():
     # Main content
     st.title(DASHBOARD_TITLE)
 
-    # Page navigation using TABS (instant switching, no page reload)
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-        "📊 Book Summary", 
-        "📋 All Positions", 
-        "👤 Trader Drill-Down",
-        "📈 Performance", 
-        "📜 Trade History", 
-        "🔮 Potential Trades"
-    ])
+    # Page navigation using SIDEBAR RADIO (only renders active page - prevents ALL tabs rendering at once)
+    page = st.sidebar.radio(
+        "📍 Navigation",
+        [
+            "📊 Book Summary",
+            "📋 All Positions",
+            "👤 Trader Drill-Down",
+            "📈 Performance",
+            "📜 Trade History",
+            "🔮 Potential Trades"
+        ],
+        key="sidebar_page_navigation"
+    )
 
-    # Render each tab content
-    with tab1:
-        try:
+    # Render ONLY the selected page (not all 6 at once)
+    try:
+        if page == "📊 Book Summary":
             render_book_summary(all_positions, settings_dict, correlation, vol_target)
-        except Exception as e:
-            st.error(f"Error rendering Book Summary: {e}")
-            logger.exception("Book Summary tab error")
-    
-    with tab2:
-        try:
+        elif page == "📋 All Positions":
             render_all_positions(all_positions)
-        except Exception as e:
-            st.error(f"Error rendering All Positions: {e}")
-            logger.exception("All Positions tab error")
-    
-    with tab3:
-        try:
+        elif page == "👤 Trader Drill-Down":
             render_trader_drilldown(all_positions, settings_dict)
-        except Exception as e:
-            st.error(f"Error rendering Trader Drill-Down: {e}")
-            logger.exception("Trader Drill-Down tab error")
-    
-    with tab4:
-        try:
+        elif page == "📈 Performance":
             render_performance(all_positions)
-        except Exception as e:
-            st.error(f"Error rendering Performance: {e}")
-            logger.exception("Performance tab error")
-    
-    with tab5:
-        try:
+        elif page == "📜 Trade History":
             render_trade_history(all_positions)
-        except Exception as e:
-            st.error(f"Error rendering Trade History: {e}")
-            logger.exception("Trade History tab error")
-    
-    with tab6:
-        try:
+        elif page == "🔮 Potential Trades":
             render_potential_trades(all_positions, correlation, vol_target)
-        except Exception as e:
-            st.error(f"Error rendering Potential Trades: {e}")
-            logger.exception("Potential Trades tab error")
+    except Exception as e:
+        st.error(f"Error rendering page: {e}")
+        logger.exception(f"Error on page {page}")
+        import traceback
+        with st.expander("🐛 Debug Info"):
+            st.code(traceback.format_exc())
     
     # Log total render time (only on first load)
     if 'app_loaded' not in st.session_state:
